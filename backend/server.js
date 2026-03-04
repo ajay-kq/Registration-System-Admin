@@ -28,8 +28,9 @@ app.use(async (req, res, next) => {
         await connectDB();
         next();
     } catch (error) {
-        console.error('Middleware DB Error.');
-        res.status(500).json({ success: false, message: 'Database connecting issue.' });
+        console.error('Middleware DB Error:', error.message);
+        // Do not crash the entire app if the db has a transient connection issue, but let the user know
+        res.status(500).json({ success: false, message: 'Database connecting issue: ' + error.message });
     }
 });
 

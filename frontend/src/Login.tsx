@@ -1,16 +1,32 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Database } from 'lucide-react';
+import api from './utils/api';
 
 export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [errorMsg, setErrorMsg] = useState('');
+    const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        // Allow any input for demonstration purposes
-        navigate('/dashboard');
+        setLoading(true);
+        setErrorMsg('');
+
+        try {
+            const res = await api.post('/auth/login', { email, password });
+            if (res.data.success) {
+                localStorage.setItem('adminToken', res.data.token);
+                localStorage.setItem('adminUser', JSON.stringify(res.data.user));
+                navigate('/dashboard');
+            }
+        } catch (err: any) {
+            setErrorMsg(err.response?.data?.message || 'Invalid credentials or inactive account.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -24,10 +40,12 @@ export default function Login() {
                 <h2 style={styles.signInText}>Sign-In</h2>
 
                 <form onSubmit={handleLogin} style={styles.form}>
+                    {errorMsg && <div style={{ color: '#d13212', fontSize: '0.85rem', marginBottom: '8px', fontWeight: 500 }}>{errorMsg}</div>}
+
                     <div style={styles.inputGroup}>
-                        <label style={styles.label}>Email (Any email works for demo)</label>
+                        <label style={styles.label}>Admin/Staff Email</label>
                         <input
-                            type="text"
+                            type="email"
                             className="admin-input"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
@@ -36,7 +54,7 @@ export default function Login() {
                     </div>
 
                     <div style={styles.inputGroup}>
-                        <label style={styles.label}>Password (Any password works)</label>
+                        <label style={styles.label}>Password</label>
                         <input
                             type="password"
                             className="admin-input"
@@ -46,8 +64,8 @@ export default function Login() {
                         />
                     </div>
 
-                    <button type="submit" className="admin-btn" style={styles.submitBtn}>
-                        Sign-In Securely
+                    <button type="submit" className="admin-btn" style={styles.submitBtn} disabled={loading}>
+                        {loading ? 'Authenticating...' : 'Sign-In Securely'}
                     </button>
                 </form>
 

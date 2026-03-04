@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from './utils/api';
 import {
     Users,
     ShoppingCart,
@@ -14,8 +15,49 @@ import {
 
 export default function Dashboard() {
     const navigate = useNavigate();
+    const [members, setMembers] = useState<any[]>([]);
+    const [stats, setStats] = useState({ total: 0, pending: 0, verified: 0 });
+    const [adminUser, setAdminUser] = useState<any>(null);
+
+    useEffect(() => {
+        // Hydrate admin session
+        const storedUser = localStorage.getItem('adminUser');
+        if (storedUser) {
+            setAdminUser(JSON.parse(storedUser));
+        }
+
+        // Fetch Live Member Data
+        const fetchMembers = async () => {
+            try {
+                // Since there is no /members route yet based on the task, we will fetch from /auth/users if it exists, or create the route.
+                // Assuming we have `/members` or similar. Let's hit `/members`.
+                const res = await api.get('/members');
+                if (res.data.success) {
+                    setMembers(res.data.data);
+
+                    // Simple mock stats calculation based on the fetched members
+                    const pending = res.data.data.filter((m: any) => m.status === 'Pending').length;
+                    const verified = res.data.data.filter((m: any) => m.status === 'Verified').length;
+
+                    setStats({
+                        total: res.data.data.length,
+                        pending,
+                        verified
+                    });
+                }
+            } catch (err) {
+                console.error("Failed to fetch members:", err);
+                alert("Session expired or unauthorized. Please login again.");
+                navigate('/login');
+            }
+        };
+
+        fetchMembers();
+    }, [navigate]);
 
     const handleLogout = () => {
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminUser');
         navigate('/login');
     };
 
@@ -62,7 +104,7 @@ export default function Dashboard() {
 
                 <div style={styles.topbarRight}>
                     <div style={styles.accountMenu} onClick={handleLogout}>
-                        <span>ad_usr_01</span>
+                        <span>{adminUser ? adminUser.email : 'Loading...'}</span>
                         <ChevronDown size={14} />
                     </div>
                     <Settings size={18} color="#ddd" style={{ cursor: 'pointer' }} />
@@ -106,9 +148,9 @@ export default function Dashboard() {
 
                     {/* Quick Metrics */}
                     <div style={styles.metricsGrid}>
-                        <MetricCard title="Total Registered Members" value="12,543" trend="+142 this week" />
-                        <MetricCard title="Pending Payments" value="84" subtext="Requires verification" />
-                        <MetricCard title="Awaiting Dispatch" value="23" subtext="In Fulfillment queue" />
+                        <MetricCard title="Total Registered Members" value={stats.total.toString()} trend="Live sync" />
+                        <MetricCard title="Pending Verifications" value={stats.pending.toString()} subtext="Awaiting review" />
+                        <MetricCard title="Verified Members" value={stats.verified.toString()} subtext="Active users" />
                         <MetricCard title="System Alerts" value="0" subtext="All systems operational" />
                     </div>
 
@@ -134,11 +176,20 @@ export default function Dashboard() {
                                 </tr>
                             </thead>
                             <tbody>
-                                <TableRow id="M-00892" name="Sarah Jenkins" email="s.jenkins@example.com" status="Verified" date="Oct 24, 2025" />
-                                <TableRow id="M-00891" name="Michael Chen" email="mike.c88@mail.com" status="Pending" date="Oct 24, 2025" />
-                                <TableRow id="M-00890" name="Alisha Robinson" email="alisha_r@corp.com" status="Verified" date="Oct 23, 2025" />
-                                <TableRow id="M-00889" name="Robert Greene" email="greene.landscape@comcast.net" status="Suspended" date="Oct 23, 2025" />
-                                <TableRow id="M-00888" name="Thomas Miller" email="tmiller_aqua@gmail.com" status="Verified" date="Oct 22, 2025" />
+                                {members.length === 0 ? (
+                                    <tr><td colSpan={6} style={{ padding: '20px', textAlign: 'center' }}>No members found.</td></tr>
+                                ) : (
+                                    members.map((member) => (
+                                        <TableRow
+                                            key={member._id}
+                                            id={member._id.substring(member._id.length - 6).toUpperCase()}
+                                            name={member.first_name ? `${member.first_name} ${member.last_name || ''}` : member.username || 'Unknown'}
+                                            email={member.email || member.phone_number || 'No Contact'}
+                                            status={member.accountStatus || 'Pending'}
+                                            date={new Date(member.createdAt).toLocaleDateString()}
+                                        />
+                                    ))
+                                )}
                             </tbody>
                         </table>
                     </div>
