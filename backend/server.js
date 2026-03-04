@@ -48,6 +48,9 @@ app.use('/api/v1/templates', require('./src/routes/templateRoutes'));
 app.use('/api/v1/messages', require('./src/routes/messageRoutes'));
 app.use('/api/v1/system', require('./src/routes/systemRoutes'));
 
+// TEMPORARY TESTING ROUTES
+app.use('/api/v1/testing', require('./src/routes/testingRoutes'));
+
 // Global error handler
 app.use((err, req, res, next) => {
     console.error(err.stack);
