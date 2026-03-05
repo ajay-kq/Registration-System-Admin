@@ -45,7 +45,7 @@ export default function Login() {
                     <div style={styles.inputGroup}>
                         <label style={styles.label}>Admin/Staff Email</label>
                         <input
-                            type="email"
+                            type="text"
                             className="admin-input"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
