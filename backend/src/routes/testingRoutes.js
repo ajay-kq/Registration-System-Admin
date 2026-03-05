@@ -17,7 +17,10 @@ router.post('/reset-db', async (req, res) => {
         // IMPORTANT: We do NOT drop the 'Member' ('users') collection here to ensure 
         // the core registration application data remains safe. We only wipe Admin app data.
 
-        await AdminUser.deleteMany({});
+        // Preserve the default admin account and Admin role
+        await AdminUser.deleteMany({ email: { $ne: 'admin' } });
+        await Role.deleteMany({ name: { $ne: 'Admin' } });
+
         await StaffUser.deleteMany({});
         await Order.deleteMany({});
         await OrderHistory.deleteMany({});
@@ -29,7 +32,6 @@ router.post('/reset-db', async (req, res) => {
         await MessageLog.deleteMany({});
         await Notification.deleteMany({});
         await AuditLog.deleteMany({});
-        await Role.deleteMany({});
 
         return res.status(200).json({
             success: true,
