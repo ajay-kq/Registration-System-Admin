@@ -107,4 +107,84 @@ const getMe = async (req, res) => {
     });
 };
 
-module.exports = { registerUser, loginUser, getMe };
+// @desc    Update current user profile (email)
+// @route   PUT /api/v1/auth/profile
+// @access  Private
+const updateProfile = async (req, res) => {
+    try {
+        const { email } = req.body;
+        const Model = req.user.user_type === 'AdminUser' ? AdminUser : StaffUser;
+
+        const user = await Model.findById(req.user._id);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        if (email) {
+            // Check if another user is already using this email
+            const adminExists = await AdminUser.findOne({ email });
+            const staffExists = await StaffUser.findOne({ email });
+
+            if ((adminExists && adminExists._id.toString() !== user._id.toString()) ||
+                (staffExists && staffExists._id.toString() !== user._id.toString())) {
+                return res.status(400).json({ success: false, message: 'Email is already in use' });
+            }
+            user.email = email;
+        }
+
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Profile updated successfully',
+            user: {
+                _id: user._id,
+                email: user.email,
+                role: req.user.role_id.name,
+                user_type: req.user.user_type
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Update password
+// @route   PUT /api/v1/auth/password
+// @access  Private
+const updatePassword = async (req, res) => {
+    try {
+        const { old_password, new_password } = req.body;
+
+        if (!old_password || !new_password) {
+            return res.status(400).json({ success: false, message: 'Please provide both old and new passwords' });
+        }
+
+        const Model = req.user.user_type === 'AdminUser' ? AdminUser : StaffUser;
+        const user = await Model.findById(req.user._id);
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        // Verify old password
+        const isMatch = await bcrypt.compare(old_password, user.password_hash);
+        if (!isMatch) {
+            return res.status(401).json({ success: false, message: 'Incorrect old password' });
+        }
+
+        // Hash and save new password
+        const salt = await bcrypt.genSalt(10);
+        user.password_hash = await bcrypt.hash(new_password, salt);
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Password updated successfully'
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+module.exports = { registerUser, loginUser, getMe, updateProfile, updatePassword };

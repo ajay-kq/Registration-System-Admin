@@ -18,12 +18,21 @@ export default function Dashboard() {
     const [members, setMembers] = useState<any[]>([]);
     const [stats, setStats] = useState({ total: 0, pending: 0, verified: 0 });
     const [adminUser, setAdminUser] = useState<any>(null);
+    const [showSettings, setShowSettings] = useState(false);
+
+    // Settings state
+    const [profileEmail, setProfileEmail] = useState('');
+    const [oldPassword, setOldPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [settingsMsg, setSettingsMsg] = useState({ type: '', text: '' });
 
     useEffect(() => {
         // Hydrate admin session
         const storedUser = localStorage.getItem('adminUser');
         if (storedUser) {
-            setAdminUser(JSON.parse(storedUser));
+            const parsed = JSON.parse(storedUser);
+            setAdminUser(parsed);
+            setProfileEmail(parsed.email);
         }
 
         // Fetch Live Member Data
@@ -59,6 +68,36 @@ export default function Dashboard() {
         localStorage.removeItem('adminToken');
         localStorage.removeItem('adminUser');
         navigate('/login');
+    };
+
+    const handleUpdateProfile = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSettingsMsg({ type: 'info', text: 'Updating profile...' });
+        try {
+            const res = await api.put('/auth/profile', { email: profileEmail });
+            if (res.data.success) {
+                setSettingsMsg({ type: 'success', text: 'Profile updated successfully!' });
+                setAdminUser(res.data.user);
+                localStorage.setItem('adminUser', JSON.stringify(res.data.user));
+            }
+        } catch (err: any) {
+            setSettingsMsg({ type: 'error', text: err.response?.data?.message || 'Failed to update profile' });
+        }
+    };
+
+    const handleUpdatePassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSettingsMsg({ type: 'info', text: 'Updating password...' });
+        try {
+            const res = await api.put('/auth/password', { old_password: oldPassword, new_password: newPassword });
+            if (res.data.success) {
+                setSettingsMsg({ type: 'success', text: 'Password updated successfully!' });
+                setOldPassword('');
+                setNewPassword('');
+            }
+        } catch (err: any) {
+            setSettingsMsg({ type: 'error', text: err.response?.data?.message || 'Failed to update password' });
+        }
     };
 
     const handleResetDB = async () => {
@@ -107,7 +146,7 @@ export default function Dashboard() {
                         <span>{adminUser ? adminUser.email : 'Loading...'}</span>
                         <ChevronDown size={14} />
                     </div>
-                    <Settings size={18} color="#ddd" style={{ cursor: 'pointer' }} />
+                    <Settings size={18} color="#ddd" style={{ cursor: 'pointer' }} onClick={() => setShowSettings(true)} />
                 </div>
             </header>
 
@@ -195,6 +234,50 @@ export default function Dashboard() {
                     </div>
                 </main>
             </div>
+
+            {/* Settings Modal */}
+            {showSettings && (
+                <div style={styles.modalOverlay}>
+                    <div style={styles.modalContent}>
+                        <div style={styles.modalHeader}>
+                            <h2>Account Settings</h2>
+                            <button onClick={() => { setShowSettings(false); setSettingsMsg({ type: '', text: '' }); }} style={styles.closeBtn}>&times;</button>
+                        </div>
+
+                        {settingsMsg.text && (
+                            <div style={{ ...styles.msgAlert, backgroundColor: settingsMsg.type === 'error' ? '#f8d7da' : settingsMsg.type === 'success' ? '#d4edda' : '#e2e3e5', color: settingsMsg.type === 'error' ? '#721c24' : settingsMsg.type === 'success' ? '#155724' : '#383d41' }}>
+                                {settingsMsg.text}
+                            </div>
+                        )}
+
+                        <div style={styles.modalBody}>
+                            <form onSubmit={handleUpdateProfile} style={styles.settingsForm}>
+                                <h3>Update Profile</h3>
+                                <div className="form-group" style={{ marginBottom: '15px' }}>
+                                    <label style={{ display: 'block', marginBottom: '5px' }}>Email Address</label>
+                                    <input type="email" value={profileEmail} onChange={(e) => setProfileEmail(e.target.value)} className="admin-input" required style={{ width: '100%', padding: '8px' }} />
+                                </div>
+                                <button type="submit" className="admin-btn" style={{ width: '100%' }}>Save Profile</button>
+                            </form>
+
+                            <hr style={{ margin: '20px 0', border: 'none', borderTop: '1px solid #ddd' }} />
+
+                            <form onSubmit={handleUpdatePassword} style={styles.settingsForm}>
+                                <h3>Change Password</h3>
+                                <div className="form-group" style={{ marginBottom: '15px' }}>
+                                    <label style={{ display: 'block', marginBottom: '5px' }}>Current Password</label>
+                                    <input type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} className="admin-input" required style={{ width: '100%', padding: '8px' }} />
+                                </div>
+                                <div className="form-group" style={{ marginBottom: '15px' }}>
+                                    <label style={{ display: 'block', marginBottom: '5px' }}>New Password</label>
+                                    <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="admin-input" required style={{ width: '100%', padding: '8px' }} />
+                                </div>
+                                <button type="submit" className="admin-btn" style={{ width: '100%', backgroundColor: '#007185', color: 'white' }}>Update Password</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -385,5 +468,55 @@ const styles: { [key: string]: React.CSSProperties } = {
     td: {
         padding: '12px 16px',
         verticalAlign: 'middle',
+    },
+    modalOverlay: {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+    },
+    modalContent: {
+        backgroundColor: '#fff',
+        padding: '24px',
+        borderRadius: '8px',
+        width: '400px',
+        maxWidth: '90%',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+    },
+    modalHeader: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '16px',
+        borderBottom: '1px solid #eee',
+        paddingBottom: '8px'
+    },
+    closeBtn: {
+        background: 'none',
+        border: 'none',
+        fontSize: '1.5rem',
+        cursor: 'pointer',
+        color: '#666'
+    },
+    modalBody: {
+        display: 'flex',
+        flexDirection: 'column'
+    },
+    settingsForm: {
+        display: 'flex',
+        flexDirection: 'column',
+    },
+    msgAlert: {
+        padding: '10px',
+        borderRadius: '4px',
+        marginBottom: '16px',
+        fontSize: '0.9rem',
+        textAlign: 'center'
     }
 };
