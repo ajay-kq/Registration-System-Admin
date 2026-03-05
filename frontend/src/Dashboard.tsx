@@ -35,9 +35,9 @@ export default function Dashboard() {
                 if (res.data.success) {
                     setMembers(res.data.data);
 
-                    // Simple mock stats calculation based on the fetched members
-                    const pending = res.data.data.filter((m: any) => m.status === 'Pending').length;
-                    const verified = res.data.data.filter((m: any) => m.status === 'Verified').length;
+                    // Calculate stats based on actual live data values
+                    const pending = res.data.data.filter((m: any) => !m.status || m.status === 'inactive' || m.status === 'Pending').length;
+                    const verified = res.data.data.filter((m: any) => m.status === 'active' || m.status === 'Verified').length;
 
                     setStats({
                         total: res.data.data.length,
@@ -183,9 +183,9 @@ export default function Dashboard() {
                                         <TableRow
                                             key={member._id}
                                             id={member._id.substring(member._id.length - 6).toUpperCase()}
-                                            name={member.first_name ? `${member.first_name} ${member.last_name || ''}` : member.username || 'Unknown'}
-                                            email={member.email || member.phone_number || 'No Contact'}
-                                            status={member.accountStatus || 'Pending'}
+                                            name={member.name || (member.first_name ? `${member.first_name} ${member.last_name || ''}` : member.username) || 'Unknown'}
+                                            email={member.email || member.phone || member.phone_number || 'No Contact'}
+                                            status={member.status || member.accountStatus || 'Pending'}
                                             date={new Date(member.createdAt).toLocaleDateString()}
                                         />
                                     ))
