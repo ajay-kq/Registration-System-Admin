@@ -41,4 +41,49 @@ router.post('/reset-db', async (req, res) => {
     }
 });
 
+// @desc    SEED DEFAULT ADMIN ACCOUNT
+// @route   POST /api/v1/testing/seed
+// @access  Public (TEMPORARY FOR SETUP)
+router.post('/seed', async (req, res) => {
+    const bcrypt = require('bcryptjs');
+    try {
+        let adminRole = await Role.findOne({ name: 'Admin' });
+        if (!adminRole) {
+            adminRole = await Role.create({
+                name: 'Admin',
+                permissions: ['all']
+            });
+        }
+
+        const adminEmail = 'admin';
+        let defaultAdmin = await AdminUser.findOne({ email: adminEmail });
+
+        if (!defaultAdmin) {
+            const salt = await bcrypt.genSalt(10);
+            const password_hash = await bcrypt.hash('admin', salt);
+
+            defaultAdmin = await AdminUser.create({
+                email: adminEmail,
+                password_hash,
+                role_id: adminRole._id,
+                status: 'active'
+            });
+        } else {
+            const salt = await bcrypt.genSalt(10);
+            const password_hash = await bcrypt.hash('admin', salt);
+            defaultAdmin.password_hash = password_hash;
+            await defaultAdmin.save();
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: 'Default admin account seeded successfully!',
+            action: defaultAdmin.isNew ? 'created' : 'updated'
+        });
+    } catch (error) {
+        console.error('Error seeding DB:', error);
+        return res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 module.exports = router;
